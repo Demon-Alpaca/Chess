@@ -11,6 +11,7 @@ import threading
 class Chess_Canvas(tkinter.Canvas):
     def __init__(self, master, height, width, HOST, PORT):
         tkinter.Canvas.__init__(self, master, height=height, width=width)
+        self.canplay = False
         self.Record = Record.Record()
         self.chess_board_points = [[None for i in range(15)] for j in range(15)]# noqaE501
         for i in range(15):
@@ -30,7 +31,7 @@ class Chess_Canvas(tkinter.Canvas):
         self.x = ''
         self.y = ''
         self.HOST = str(HOST)
-        self.PORT = int(PORT) 
+        self.PORT = int(PORT)
         self.server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.server.bind((self.HOST, self.PORT))
         self.server.listen(10)
@@ -80,39 +81,42 @@ class Chess_Canvas(tkinter.Canvas):
                         messagebox.showinfo(title='WIN', message='The Black Win')# noqaE501
                         # 解除鼠标左键绑定
                         self.unbind('<Button-1>')
+        self.canplay = True
 
     def click1(self, event):
-        data = str(event.x)+" "+str(event.y)
-        self.sock.send(data.encode("utf-8"))
-        for i in range(15):
-            for j in range(15):
-                square_distance = math.pow((event.x - self.chess_board_points[i][j].pixel_x), 2) + math.pow((event.y - self.chess_board_points[i][j].pixel_y), 2)# noqaE501
+        if self.canplay:
+            data = str(event.x)+" "+str(event.y)
+            self.sock.send(data.encode("utf-8"))
+            for i in range(15):
+                for j in range(15):
+                    square_distance = math.pow((event.x - self.chess_board_points[i][j].pixel_x), 2) + math.pow((event.y - self.chess_board_points[i][j].pixel_y), 2)# noqaE501
 
-                if (square_distance <= 200) and (not self.Record.has_record(i, j)):# noqaE501
-                    # 距离小于14并且没有落子
-                    if self.Record.who_to_play() == 1:
-                        # 若果根据步数判断是奇数次,那么白下
-                        self.create_oval(self.chess_board_points[i][j].pixel_x-10, self.chess_board_points[i][j].pixel_y-10, self.chess_board_points[i][j].pixel_x+10, self.chess_board_points[i][j].pixel_y+10, fill='white')# noqaE501
+                    if (square_distance <= 200) and (not self.Record.has_record(i, j)):# noqaE501
+                        # 距离小于14并且没有落子
+                        if self.Record.who_to_play() == 1:
+                            # 若果根据步数判断是奇数次,那么白下
+                            self.create_oval(self.chess_board_points[i][j].pixel_x-10, self.chess_board_points[i][j].pixel_y-10, self.chess_board_points[i][j].pixel_x+10, self.chess_board_points[i][j].pixel_y+10, fill='white')# noqaE501
 
-                    elif self.Record.who_to_play() == 2:
-                        self.create_oval(self.chess_board_points[i][j].pixel_x-10, self.chess_board_points[i][j].pixel_y-10, self.chess_board_points[i][j].pixel_x+10, self.chess_board_points[i][j].pixel_y+10, fill='black')# noqaE501
+                        elif self.Record.who_to_play() == 2:
+                            self.create_oval(self.chess_board_points[i][j].pixel_x-10, self.chess_board_points[i][j].pixel_y-10, self.chess_board_points[i][j].pixel_x+10, self.chess_board_points[i][j].pixel_y+10, fill='black')# noqaE501
 
-                    self.Record.insert_record(i, j)
+                        self.Record.insert_record(i, j)
 
-                    result = self.Record.check()
-                    # 判断是否有五子连珠
+                        result = self.Record.check()
+                        # 判断是否有五子连珠
 
-                    if result == 1:
-                        messagebox.shoinfo(title='WIN', message='The White Win')# noqaE501
-                        # 解除鼠标左键绑定
-                        self.unbind('<Button-1>')
-                        # """Unbind for this widget for event SEQUENCE  the
-                        #     function identified with FUNCID."""
+                        if result == 1:
+                            messagebox.showinfo(title='WIN', message='The White Win')# noqaE501
+                            # 解除鼠标左键绑定
+                            self.unbind('<Button-1>')
+                            # """Unbind for this widget for event SEQUENCE  the
+                            #     function identified with FUNCID."""
 
-                    elif result == 2:
-                        messagebox.showinfo(title='WIN', message='The Black Win')# noqaE501
-                        # 解除鼠标左键绑定
-                        self.unbind('<Button-1>')
+                        elif result == 2:
+                            messagebox.showinfo(title='WIN', message='The Black Win')# noqaE501
+                            # 解除鼠标左键绑定
+                            self.unbind('<Button-1>')
+        self.canplay = False
 
 
 class Chess():
