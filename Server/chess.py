@@ -9,7 +9,7 @@ import threading
 
 
 class Chess_Canvas(tkinter.Canvas):
-    def __init__(self, master, height, width, is_server):
+    def __init__(self, master, height, width, HOST, PORT):
         tkinter.Canvas.__init__(self, master, height=height, width=width)
         self.Record = Record.Record()
         self.chess_board_points = [[None for i in range(15)] for j in range(15)]# noqaE501
@@ -29,44 +29,13 @@ class Chess_Canvas(tkinter.Canvas):
                 self.create_oval(self.chess_board_points[i][j].pixel_x-r, self.chess_board_points[i][j].pixel_y-r, self.chess_board_points[i][j].pixel_x+r, self.chess_board_points[i][j].pixel_y+r)# noqaE501
         self.x = ''
         self.y = ''
-        self.HOST = '127.0.0.1'
-        self.PORT = 5000
+        self.HOST = str(HOST)
+        self.PORT = int(PORT) 
         self.server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.server.bind((self.HOST, self.PORT))
         self.server.listen(10)
         thread_1 = threading.Thread(target=self.accept_message, args=(self.server, self.x, self.y, self))# noqaE501
         thread_1.start()
-
-    # def draw(self, x, y):
-    #     for i in range(15):
-    #         for j in range(15):
-    #             square_distance = math.pow((x - self.chess_board_points[i][j].pixel_x), 2) + math.pow((y - self.chess_board_points[i][j].pixel_y), 2)# noqaE501
-
-    #             if (square_distance <= 200) and (not self.Record.has_record(i, j)):# noqaE501
-    #                 # 距离小于14并且没有落子
-    #                 if self.Record.who_to_play() == 1:
-    #                     # 若果根据步数判断是奇数次,那么白下
-    #                     self.create_oval(self.chess_board_points[i][j].pixel_x-10, self.chess_board_points[i][j].pixel_y-10, self.chess_board_points[i][j].pixel_x+10, self.chess_board_points[i][j].pixel_y+10, fill='white')# noqaE501
-
-    #                 elif self.Record.who_to_play() == 2:
-    #                     self.create_oval(self.chess_board_points[i][j].pixel_x-10, self.chess_board_points[i][j].pixel_y-10, self.chess_board_points[i][j].pixel_x+10, self.chess_board_points[i][j].pixel_y+10, fill='black')# noqaE501
-
-    #                 self.Record.insert_record(i, j)
-
-    #                 result = self.Record.check()
-    #                 # 判断是否有五子连珠
-
-    #                 if result == 1:
-    #                     messagebox.shoinfo(title='WIN', message='The White Win')# noqaE501
-    #                     # 解除鼠标左键绑定
-    #                     self.unbind('<Button-1>')
-    #                     # """Unbind for this widget for event SEQUENCE  the
-    #                     #     function identified with FUNCID."""
-
-    #                 elif result == 2:
-    #                     messagebox.showinfo(title='WIN', message='The Black Win')# noqaE501
-    #                     # 解除鼠标左键绑定
-    #                     self.unbind('<Button-1>')
 
     def accept_message(self, server, x, y, theSystem):
         conn, address = server.accept()
@@ -147,12 +116,14 @@ class Chess_Canvas(tkinter.Canvas):
 
 
 class Chess():
-    def __init__(self, master=None):
-        self.master = master
-        self.create_widgets()
+    def __init__(self, root, HOST, PORT):
+        self.master = tkinter.Tk()
+        root.destroy()
+        self.create_widgets(HOST, PORT)
+        self.master.mainloop()
 
-    def create_widgets(self):
-        self.chess_board_canvas = Chess_Canvas(self.master, height=650, width=630, is_server=1)# noqaE501
+    def create_widgets(self, HOST, PORT):
+        self.chess_board_canvas = Chess_Canvas(self.master, 650, 630, HOST, PORT)# noqaE501
 
         self.chess_board_canvas.bind('<Button-1>', self.chess_board_canvas.click1)
 
