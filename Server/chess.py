@@ -74,8 +74,6 @@ class Chess_Canvas(tkinter.Canvas):
                         messagebox.shoinfo(title='WIN', message='The White Win')# noqaE501
                         # 解除鼠标左键绑定
                         self.unbind('<Button-1>')
-                        # """Unbind for this widget for event SEQUENCE  the
-                        #     function identified with FUNCID."""
 
                     elif result == 2:
                         messagebox.showinfo(title='WIN', message='The Black Win')# noqaE501
@@ -122,6 +120,7 @@ class Chess_Canvas(tkinter.Canvas):
 class Chess():
     def __init__(self, root, HOST, PORT):
         self.master = tkinter.Tk()
+        self.master.title('SERVER')
         root.destroy()
         self.create_widgets(HOST, PORT)
         self.master.mainloop()

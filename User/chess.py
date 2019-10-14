@@ -119,6 +119,7 @@ class Chess_Canvas(tkinter.Canvas):
 class Chess():
     def __init__(self, root, HOST, PORT):
         self.master = tkinter.Tk()
+        self.master.title('USER')
         root.destroy()
         self.create_widgets(HOST, PORT)
         self.master.mainloop()
