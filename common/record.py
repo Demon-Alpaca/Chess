@@ -16,6 +16,10 @@ class Record:
         self.records[x][y] = Step_Record(self.count)
         self.count += 1
 
+    def delete_record(self, x, y):
+        self.records[x][y] = None
+        self.count -= 1
+
     def who_to_play(self):
         return (self.count) % 2 + 1
 
