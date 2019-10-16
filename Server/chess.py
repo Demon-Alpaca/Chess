@@ -5,6 +5,7 @@ from tkinter import ttk
 import socket
 import threading
 from ttkthemes import ThemedTk
+import time
 import sys
 sys.path.append('..')
 
@@ -12,16 +13,22 @@ sys.path.append('..')
 from common.circle import Circle# noqa
 import common.point as Point# noqa
 import common.record as Record# noqa
+from common.create import MysqlWork# noqa
 
 
 class Chess_Canvas(tkinter.Canvas):
     def __init__(self, master, height, width, HOST, PORT):
         tkinter.Canvas.__init__(self, master, height=height, width=width)
+        self.is_create_db = True
+        # tb_chess 的主键
+        self.count = 0
         self.is_running = True
         self.master = master
         # 用于悔棋的栈
         self.my_points = []
         self.you_points = []
+        # 保存回放棋子的栈
+        self.back_points = []
         self.canplay = 0
         self.Record = Record.Record()
         self.chess_board_points = [[None for i in range(15)] for j in range(15)]# noqaE501
@@ -49,6 +56,34 @@ class Chess_Canvas(tkinter.Canvas):
         self.thread_1 = threading.Thread(target=self.accept_message, args=(self.server, self.x, self.y, self))# noqaE501
         self.thread_1.start()
 
+        # 数据库操作
+        self.DB_NAME = 'db_chess'
+        self.TB_NAME = 'tb_chess'
+        self.config = {
+            'user': 'root',
+            'password': '12345',
+            'host': 'localhost',
+        }
+        self.mysqlWork = MysqlWork(self.config)
+        self.mysqlWork.connect()
+
+        self.TABLES = {}
+        # action == '1' 代表下棋 action == '0' 代表悔棋
+        self.TABLES['tb_chess'] = (
+            "CREATE TABLE `tb_chess`("
+            "`count` int(3),"
+            "`x` int(2),"
+            "`y` int(2),"
+            "`color` varchar(6),"
+            "`action` int(1),"
+            "PRIMARY KEY (`count`)"
+            ") ENGINE=InnoDB"
+        )
+        self.query_sql = ("SELECT * FROM tb_chess")
+        self.insert_sql = ("INSERT INTO tb_chess "
+                            "(count, x, y, color, action) "# noqa
+                            "VALUES(%s, %s, %s, %s, %s)")
+
     def accept_message(self, server, x, y, theSystem):
         print('accept mesage')
         conn, address = server.accept()
@@ -69,6 +104,13 @@ class Chess_Canvas(tkinter.Canvas):
                 self.call_after_sever(x, y)
 
     def call_after_sever(self, x, y):
+        if self.is_create_db:
+            if self.mysqlWork.create_table(self.DB_NAME, self.TABLES) == -1:
+                self.mysqlWork.delete_table(self.DB_NAME, self.TB_NAME)
+            self.mysqlWork.create_table(self.DB_NAME, self.TABLES)
+            self.is_create_db = False
+        # tb_chess 的主键
+        self.count += 1
         self.canplay += 1
         for i in range(15):
             for j in range(15):
@@ -81,6 +123,12 @@ class Chess_Canvas(tkinter.Canvas):
                     circle = Circle(point, i, j)
                     self.you_points.append(circle)
                     result = self.Record.check()
+
+                    # 写入数据库
+
+                    data_chess = (self.count, i, j, 'black', 1)
+                    self.mysqlWork.insert_data(self.DB_NAME, self.insert_sql, data_chess)# noqaE501
+
                     # 判断是否有五子连珠
 
                     if result == 1:
@@ -94,6 +142,8 @@ class Chess_Canvas(tkinter.Canvas):
                         self.unbind('<Button-1>')
 
     def click1(self, event):
+        # tb_chess 的主键
+        self.count += 1
         if self.canplay > 0:
             data = str(event.x)+" "+str(event.y)
             self.sock.send(data.encode("utf-8"))
@@ -104,10 +154,20 @@ class Chess_Canvas(tkinter.Canvas):
                     if (square_distance <= 196) and (not self.Record.has_record(i, j)):# noqaE501
                         # 距离小于14并且没有落子
                         point = self.create_oval(self.chess_board_points[i][j].pixel_x-10, self.chess_board_points[i][j].pixel_y-10, self.chess_board_points[i][j].pixel_x+10, self.chess_board_points[i][j].pixel_y+10, fill='white')# noqaE501
+
+                        # 插入记录 用于之后判断
                         self.Record.insert_record(i, j, color='white')
+
+                        # 添加进my_point队列 用于悔棋
                         circle = Circle(point, i, j)
                         self.my_points.append(circle)
                         result = self.Record.check()
+
+                        # 写入数据库
+                        data_chess = (self.count, i, j, 'white', 1)
+
+                        self.mysqlWork.insert_data(self.DB_NAME, self.insert_sql, data_chess)# noqaE501
+
                         # 判断是否有五子连珠
 
                         if result == 1:
@@ -125,6 +185,8 @@ class Chess_Canvas(tkinter.Canvas):
             # print("after click canplay = {:d}".format(self.canplay))
 
     def regret(self):
+        # tb_chess 的主键
+        self.count += 1
         if len(self.my_points) > 0:
             point = self.my_points.pop()
             self.delete(point.circle)
@@ -134,17 +196,59 @@ class Chess_Canvas(tkinter.Canvas):
             # 每悔棋一次 加一次下棋机会
             self.canplay += 1
 
+            # 写入数据库
+            data_chess = (self.count, point.x, point.y, 'white', 0)
+
+            self.mysqlWork.insert_data(self.DB_NAME, self.insert_sql, data_chess)# noqaE501
+
     def regrt_after_serve(self):
+        # tb_chess 的主键
+        self.count += 1
         if len(self.you_points) > 0:
             point = self.you_points.pop()
             self.delete(point.circle)
             self.Record.delete_record(point.x, point.y)
+            # 写入数据库
+            data_chess = (self.count, point.x, point.y, 'black', 0)
+            self.mysqlWork.insert_data(self.DB_NAME, self.insert_sql, data_chess)# noqaE501
 
     def quit(self):
-        pass
-        # self.is_running = False
-        # self.thread_1.join()
-        # self.is_running = False
+        self.is_running = False
+        self.thread_1.join()
+
+    def play_back(self):
+        ret = self.mysqlWork.query_data(self.DB_NAME, self.query_sql)
+
+        for (count, x, y, color, action) in ret:
+            print("count = {:d} x = {:d} y = {:d} color = {} action = {:d}".format(count, x, y, color, action))# noqaE501
+            if action == 1:
+                # time.sleep(3)
+                point = self.create_oval(self.chess_board_points[x][y].pixel_x-10, self.chess_board_points[x][y].pixel_y-10, self.chess_board_points[x][y].pixel_x+10, self.chess_board_points[x][y].pixel_y+10, fill=color) # noqaE501
+
+                # 插入记录 用于之后判断
+                self.Record.insert_record(x, y, color=color)
+
+                # 添加进my_point队列 用于悔棋
+                circle = Circle(point, x, y)
+                self.back_points.append(circle)
+                result = self.Record.check()
+                if result == 1:
+                            messagebox.showinfo(title='WIN', message='The White Win')# noqaE501
+                            # 解除鼠标左键绑定
+                            self.unbind('<Button-1>')
+                            # """Unbind for this widget for event SEQUENCE  the
+                            #     function identified with FUNCID."""
+
+                elif result == 2:
+                    messagebox.showinfo(title='WIN', message='The Black Win')# noqaE501
+                    # 解除鼠标左键绑定
+                    self.unbind('<Button-1>')
+            elif action == 0:
+                # time.sleep(3)
+                if len(self.back_points) > 0:
+                    point = self.back_points.pop()
+                    self.delete(point.circle)
+                    self.Record.delete_record(point.x, point.y)
 
 
 class Chess():
@@ -166,3 +270,6 @@ class Chess():
 
         btn_quit = ttk.Button(self.master, text='QUIT', command=lambda: self.chess_canvas.quit())# noqaE501
         btn_quit.place(x=150, y=620)
+
+        btn_play_back = ttk.Button(self.master, text='PLAY BACK', command=lambda: self.chess_canvas.play_back())# noqaE501
+        btn_play_back.place(x=280, y=620)
