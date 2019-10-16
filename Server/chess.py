@@ -5,7 +5,6 @@ from tkinter import ttk
 import socket
 import threading
 from ttkthemes import ThemedTk
-import time
 import sys
 sys.path.append('..')
 
@@ -14,11 +13,13 @@ from common.circle import Circle# noqa
 import common.point as Point# noqa
 import common.record as Record# noqa
 from common.create import MysqlWork# noqa
+from common.sql import Sql # noqa
 
 
 class Chess_Canvas(tkinter.Canvas):
     def __init__(self, master, height, width, HOST, PORT):
         tkinter.Canvas.__init__(self, master, height=height, width=width)
+        self.not_prepared = True
         self.is_create_db = True
         # tb_chess 的主键
         self.count = 0
@@ -28,7 +29,9 @@ class Chess_Canvas(tkinter.Canvas):
         self.my_points = []
         self.you_points = []
         # 保存回放棋子的栈
-        self.back_points = []
+        self.back_point = []
+        # 保存数据库查询结果的队列
+        self.sql_ret = []
         self.canplay = 0
         self.Record = Record.Record()
         self.chess_board_points = [[None for i in range(15)] for j in range(15)]# noqaE501
@@ -215,29 +218,41 @@ class Chess_Canvas(tkinter.Canvas):
     def quit(self):
         self.is_running = False
         self.thread_1.join()
+        self.mysqlWork.close()
 
-    def play_back(self):
+    # 回放前的准备工作
+    def before_play_back(self):
+        # 将数据库查询结果存储到队列中
         ret = self.mysqlWork.query_data(self.DB_NAME, self.query_sql)
 
         for (count, x, y, color, action) in ret:
-            print("count = {:d} x = {:d} y = {:d} color = {} action = {:d}".format(count, x, y, color, action))# noqaE501
-            if action == 1:
-                # time.sleep(3)
-                point = self.create_oval(self.chess_board_points[x][y].pixel_x-10, self.chess_board_points[x][y].pixel_y-10, self.chess_board_points[x][y].pixel_x+10, self.chess_board_points[x][y].pixel_y+10, fill=color) # noqaE501
+            # print("count = {:d} x = {:d} y = {:d} color = {} action = {:d}".format(count, x, y, color, action))# noqaE501
+            sql = Sql(count, x, y, color, action)
+            self.sql_ret.append(sql)
 
+    def play_back(self):
+        if self.not_prepared:
+            self.before_play_back()
+            self.not_prepared = False
+        if len(self.sql_ret) > 0:
+            sql = self.sql_ret.pop(0)
+            x = sql.x
+            y = sql.y
+            color = sql.color
+            action = sql.action
+            if action == 1:
+                point = self.create_oval(self.chess_board_points[x][y].pixel_x-10, self.chess_board_points[x][y].pixel_y-10, self.chess_board_points[x][y].pixel_x+10, self.chess_board_points[x][y].pixel_y+10, fill=color) # noqaE501
                 # 插入记录 用于之后判断
                 self.Record.insert_record(x, y, color=color)
 
                 # 添加进my_point队列 用于悔棋
                 circle = Circle(point, x, y)
-                self.back_points.append(circle)
+                self.back_point.append(circle)
                 result = self.Record.check()
                 if result == 1:
-                            messagebox.showinfo(title='WIN', message='The White Win')# noqaE501
-                            # 解除鼠标左键绑定
-                            self.unbind('<Button-1>')
-                            # """Unbind for this widget for event SEQUENCE  the
-                            #     function identified with FUNCID."""
+                    messagebox.showinfo(title='WIN', message='The White Win')# noqaE501
+                    # 解除鼠标左键绑定
+                    self.unbind('<Button-1>')
 
                 elif result == 2:
                     messagebox.showinfo(title='WIN', message='The Black Win')# noqaE501
@@ -245,10 +260,9 @@ class Chess_Canvas(tkinter.Canvas):
                     self.unbind('<Button-1>')
             elif action == 0:
                 # time.sleep(3)
-                if len(self.back_points) > 0:
-                    point = self.back_points.pop()
-                    self.delete(point.circle)
-                    self.Record.delete_record(point.x, point.y)
+                point = self.back_point.pop()
+                self.delete(point.circle)
+                self.Record.delete_record(point.x, point.y)
 
 
 class Chess():
