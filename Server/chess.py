@@ -76,14 +76,8 @@ class Chess_Canvas(tkinter.Canvas):
 
                 if (square_distance <= 200) and (not self.Record.has_record(i, j)):# noqaE501
                     # 距离小于14并且没有落子
-                    if self.Record.who_to_play() == 1:
-                        # 若果根据步数判断是奇数次,那么白下
-                        point = self.create_oval(self.chess_board_points[i][j].pixel_x-10, self.chess_board_points[i][j].pixel_y-10, self.chess_board_points[i][j].pixel_x+10, self.chess_board_points[i][j].pixel_y+10, fill='white')# noqaE501
-
-                    elif self.Record.who_to_play() == 2:
-                        point = self.create_oval(self.chess_board_points[i][j].pixel_x-10, self.chess_board_points[i][j].pixel_y-10, self.chess_board_points[i][j].pixel_x+10, self.chess_board_points[i][j].pixel_y+10, fill='black')# noqaE501
-
-                    self.Record.insert_record(i, j)
+                    point = self.create_oval(self.chess_board_points[i][j].pixel_x-10, self.chess_board_points[i][j].pixel_y-10, self.chess_board_points[i][j].pixel_x+10, self.chess_board_points[i][j].pixel_y+10, fill='black')# noqaE501
+                    self.Record.insert_record(i, j, color='black')
                     circle = Circle(point, i, j)
                     self.you_points.append(circle)
                     result = self.Record.check()
@@ -107,16 +101,10 @@ class Chess_Canvas(tkinter.Canvas):
                 for j in range(15):
                     square_distance = math.pow((event.x - self.chess_board_points[i][j].pixel_x), 2) + math.pow((event.y - self.chess_board_points[i][j].pixel_y), 2)# noqaE501
 
-                    if (square_distance <= 200) and (not self.Record.has_record(i, j)):# noqaE501
+                    if (square_distance <= 196) and (not self.Record.has_record(i, j)):# noqaE501
                         # 距离小于14并且没有落子
-                        if self.Record.who_to_play() == 1:
-                            # 若果根据步数判断是奇数次,那么白下
-                            point = self.create_oval(self.chess_board_points[i][j].pixel_x-10, self.chess_board_points[i][j].pixel_y-10, self.chess_board_points[i][j].pixel_x+10, self.chess_board_points[i][j].pixel_y+10, fill='white')# noqaE501
-
-                        elif self.Record.who_to_play() == 2:
-                            point = self.create_oval(self.chess_board_points[i][j].pixel_x-10, self.chess_board_points[i][j].pixel_y-10, self.chess_board_points[i][j].pixel_x+10, self.chess_board_points[i][j].pixel_y+10, fill='black')# noqaE501
-
-                        self.Record.insert_record(i, j)
+                        point = self.create_oval(self.chess_board_points[i][j].pixel_x-10, self.chess_board_points[i][j].pixel_y-10, self.chess_board_points[i][j].pixel_x+10, self.chess_board_points[i][j].pixel_y+10, fill='white')# noqaE501
+                        self.Record.insert_record(i, j, color='white')
                         circle = Circle(point, i, j)
                         self.my_points.append(circle)
                         result = self.Record.check()
@@ -134,6 +122,7 @@ class Chess_Canvas(tkinter.Canvas):
                             # 解除鼠标左键绑定
                             self.unbind('<Button-1>')
             self.canplay -= 1
+            # print("after click canplay = {:d}".format(self.canplay))
 
     def regret(self):
         if len(self.my_points) > 0:
