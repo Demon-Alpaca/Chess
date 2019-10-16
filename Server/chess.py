@@ -88,14 +88,10 @@ class Chess_Canvas(tkinter.Canvas):
                             "VALUES(%s, %s, %s, %s, %s)")
 
     def accept_message(self, server, x, y, theSystem):
-        print('accept mesage')
         conn, address = server.accept()
         theSystem.sock = conn
-        print("Connection from " + str(address))
         while self.is_running:
             data = conn.recv(1024).decode()
-            if not data:
-                break
             if not data:
                 break
             if data == 'delete':
@@ -106,6 +102,21 @@ class Chess_Canvas(tkinter.Canvas):
                 y = int(rec_data[1])
                 self.call_after_sever(x, y)
 
+    def win(self, result):
+        if result == 1:
+            messagebox.shoinfo(title='WIN', message='The White Win')# noqaE501
+            self.unbind('<Button-1>')
+        elif result == 2:
+            messagebox.showinfo(title='WIN', message='The Black Win')# noqaE501
+            self.unbind('<Button-1>')
+
+    def in_table(self, x, y):
+        for i in range(15):
+            for j in range(15):
+                square_distance = math.pow((x - self.chess_board_points[i][j].pixel_x), 2) + math.pow((y - self.chess_board_points[i][j].pixel_y), 2)# noqaE501
+                if (square_distance <= 200) and (not self.Record.has_record(i, j)):# noqaE501
+                    return i, j
+
     def call_after_sever(self, x, y):
         if self.is_create_db:
             if self.mysqlWork.create_table(self.DB_NAME, self.TABLES) == -1:
@@ -115,34 +126,20 @@ class Chess_Canvas(tkinter.Canvas):
         # tb_chess 的主键
         self.count += 1
         self.canplay += 1
-        for i in range(15):
-            for j in range(15):
-                square_distance = math.pow((x - self.chess_board_points[i][j].pixel_x), 2) + math.pow((y - self.chess_board_points[i][j].pixel_y), 2)# noqaE501
+        i, j = self.in_table(x, y)
+        # 距离小于14并且没有落子
+        point = self.create_oval(self.chess_board_points[i][j].pixel_x-10, self.chess_board_points[i][j].pixel_y-10, self.chess_board_points[i][j].pixel_x+10, self.chess_board_points[i][j].pixel_y+10, fill='black')# noqaE501
+        self.Record.insert_record(i, j, color='black')
+        circle = Circle(point, i, j)
+        # 记录到队列中
+        self.you_points.append(circle)
+        result = self.Record.check()
 
-                if (square_distance <= 200) and (not self.Record.has_record(i, j)):# noqaE501
-                    # 距离小于14并且没有落子
-                    point = self.create_oval(self.chess_board_points[i][j].pixel_x-10, self.chess_board_points[i][j].pixel_y-10, self.chess_board_points[i][j].pixel_x+10, self.chess_board_points[i][j].pixel_y+10, fill='black')# noqaE501
-                    self.Record.insert_record(i, j, color='black')
-                    circle = Circle(point, i, j)
-                    self.you_points.append(circle)
-                    result = self.Record.check()
-
-                    # 写入数据库
-
-                    data_chess = (self.count, i, j, 'black', 1)
-                    self.mysqlWork.insert_data(self.DB_NAME, self.insert_sql, data_chess)# noqaE501
-
-                    # 判断是否有五子连珠
-
-                    if result == 1:
-                        messagebox.shoinfo(title='WIN', message='The White Win')# noqaE501
-                        # 解除鼠标左键绑定
-                        self.unbind('<Button-1>')
-
-                    elif result == 2:
-                        messagebox.showinfo(title='WIN', message='The Black Win')# noqaE501
-                        # 解除鼠标左键绑定
-                        self.unbind('<Button-1>')
+        # 写入数据库
+        data_chess = (self.count, i, j, 'black', 1)
+        self.mysqlWork.insert_data(self.DB_NAME, self.insert_sql, data_chess)# noqaE501
+        # 判断谁赢了
+        self.win(result)
 
     def click1(self, event):
         # tb_chess 的主键
@@ -150,41 +147,19 @@ class Chess_Canvas(tkinter.Canvas):
         if self.canplay > 0:
             data = str(event.x)+" "+str(event.y)
             self.sock.send(data.encode("utf-8"))
-            for i in range(15):
-                for j in range(15):
-                    square_distance = math.pow((event.x - self.chess_board_points[i][j].pixel_x), 2) + math.pow((event.y - self.chess_board_points[i][j].pixel_y), 2)# noqaE501
-
-                    if (square_distance <= 196) and (not self.Record.has_record(i, j)):# noqaE501
-                        # 距离小于14并且没有落子
-                        point = self.create_oval(self.chess_board_points[i][j].pixel_x-10, self.chess_board_points[i][j].pixel_y-10, self.chess_board_points[i][j].pixel_x+10, self.chess_board_points[i][j].pixel_y+10, fill='white')# noqaE501
-
-                        # 插入记录 用于之后判断
-                        self.Record.insert_record(i, j, color='white')
-
-                        # 添加进my_point队列 用于悔棋
-                        circle = Circle(point, i, j)
-                        self.my_points.append(circle)
-                        result = self.Record.check()
-
-                        # 写入数据库
-                        data_chess = (self.count, i, j, 'white', 1)
-
-                        self.mysqlWork.insert_data(self.DB_NAME, self.insert_sql, data_chess)# noqaE501
-
-                        # 判断是否有五子连珠
-
-                        if result == 1:
-                            messagebox.showinfo(title='WIN', message='The White Win')# noqaE501
-                            # 解除鼠标左键绑定
-                            self.unbind('<Button-1>')
-                            # """Unbind for this widget for event SEQUENCE  the
-                            #     function identified with FUNCID."""
-
-                        elif result == 2:
-                            messagebox.showinfo(title='WIN', message='The Black Win')# noqaE501
-                            # 解除鼠标左键绑定
-                            self.unbind('<Button-1>')
-            self.canplay -= 1
+            i, j = self.in_table(event.x, event.y)
+            point = self.create_oval(self.chess_board_points[i][j].pixel_x-10, self.chess_board_points[i][j].pixel_y-10, self.chess_board_points[i][j].pixel_x+10, self.chess_board_points[i][j].pixel_y+10, fill='white')# noqaE501
+            # 插入记录 用于之后判断
+            self.Record.insert_record(i, j, color='white')
+            # 添加进my_point队列 用于悔棋
+            circle = Circle(point, i, j)
+            self.my_points.append(circle)
+            result = self.Record.check()
+            # 写入数据库
+            data_chess = (self.count, i, j, 'white', 1)
+            self.mysqlWork.insert_data(self.DB_NAME, self.insert_sql, data_chess)# noqaE501
+            # 判断是否有五子连珠
+            self.win(result)
             # print("after click canplay = {:d}".format(self.canplay))
 
     def regret(self):
@@ -249,16 +224,7 @@ class Chess_Canvas(tkinter.Canvas):
                 circle = Circle(point, x, y)
                 self.back_point.append(circle)
                 result = self.Record.check()
-                if result == 1:
-                    messagebox.showinfo(title='WIN', message='The White Win')# noqaE501
-                    # 解除鼠标左键绑定
-                    self.unbind('<Button-1>')
-
-                elif result == 2:
-                    messagebox.showinfo(title='WIN', message='The Black Win')# noqaE501
-                    # 解除鼠标左键绑定
-                    self.unbind('<Button-1>')
-            elif action == 0:
+                self.win(result)
                 # time.sleep(3)
                 point = self.back_point.pop()
                 self.delete(point.circle)

@@ -1,5 +1,7 @@
 ## 五子棋小游戏
 
+[![BCH compliance](https://bettercodehub.com/edge/badge/wangzitiansky/Chess?branch=master)](https://bettercodehub.com/)
+
 ### 开发运行环境
 
 + #### python3.7
