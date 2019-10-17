@@ -19,7 +19,9 @@ from common.sql import Sql # noqa
 class Chess_Canvas(tkinter.Canvas):
     def __init__(self, master, height, width, HOST, PORT):
         tkinter.Canvas.__init__(self, master, height=height, width=width)
+        # 回放前将数据一次读出
         self.not_prepared = True
+        # 是否要新建数据库
         self.is_create_db = True
         # tb_chess 的主键
         self.count = 0
@@ -34,6 +36,18 @@ class Chess_Canvas(tkinter.Canvas):
         self.sql_ret = []
         self.canplay = 0
         self.Record = Record.Record()
+        self.init_chess_board()
+
+        self.x = ''
+        self.y = ''
+        self.HOST = str(HOST)
+        self.PORT = int(PORT)
+        self.init_server()
+
+        # 数据库操作
+        self.init_sql()
+
+    def init_chess_board(self):
         self.chess_board_points = [[None for i in range(15)] for j in range(15)]# noqaE501
         for i in range(15):
             for j in range(15):
@@ -49,16 +63,15 @@ class Chess_Canvas(tkinter.Canvas):
             for j in range(15):
                 r = 1
                 self.create_oval(self.chess_board_points[i][j].pixel_x-r, self.chess_board_points[i][j].pixel_y-r, self.chess_board_points[i][j].pixel_x+r, self.chess_board_points[i][j].pixel_y+r)# noqaE501
-        self.x = ''
-        self.y = ''
-        self.HOST = str(HOST)
-        self.PORT = int(PORT)
+
+    def init_server(self):
         self.server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.server.bind((self.HOST, self.PORT))
         self.server.listen(10)
         self.thread_1 = threading.Thread(target=self.accept_message, args=(self.server, self.x, self.y, self))# noqaE501
         self.thread_1.start()
 
+    def init_sql(self):
         # 数据库操作
         self.DB_NAME = 'db_chess'
         self.TB_NAME = 'tb_chess'
@@ -117,12 +130,15 @@ class Chess_Canvas(tkinter.Canvas):
                 if (square_distance <= 200) and (not self.Record.has_record(i, j)):# noqaE501
                     return i, j
 
+    def create_new_table(self):
+        if self.mysqlWork.create_table(self.DB_NAME, self.TABLES) == -1:
+            self.mysqlWork.delete_table(self.DB_NAME, self.TB_NAME)
+            self.mysqlWork.create_table(self.DB_NAME, self.TABLES)
+        self.is_create_db = False
+
     def call_after_sever(self, x, y):
         if self.is_create_db:
-            if self.mysqlWork.create_table(self.DB_NAME, self.TABLES) == -1:
-                self.mysqlWork.delete_table(self.DB_NAME, self.TB_NAME)
-            self.mysqlWork.create_table(self.DB_NAME, self.TABLES)
-            self.is_create_db = False
+            self.create_new_table()
         # tb_chess 的主键
         self.count += 1
         self.canplay += 1
@@ -198,6 +214,7 @@ class Chess_Canvas(tkinter.Canvas):
     # 回放前的准备工作
     def before_play_back(self):
         # 将数据库查询结果存储到队列中
+        self.not_prepared = False
         ret = self.mysqlWork.query_data(self.DB_NAME, self.query_sql)
 
         for (count, x, y, color, action) in ret:
@@ -208,7 +225,7 @@ class Chess_Canvas(tkinter.Canvas):
     def play_back(self):
         if self.not_prepared:
             self.before_play_back()
-            self.not_prepared = False
+
         if len(self.sql_ret) > 0:
             sql = self.sql_ret.pop(0)
             x = sql.x
@@ -226,6 +243,7 @@ class Chess_Canvas(tkinter.Canvas):
                 result = self.Record.check()
                 self.win(result)
                 # time.sleep(3)
+            else:
                 point = self.back_point.pop()
                 self.delete(point.circle)
                 self.Record.delete_record(point.x, point.y)
