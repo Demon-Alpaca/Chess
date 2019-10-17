@@ -1,9 +1,4 @@
-import tkinter
-from tkinter import messagebox
-import math
 from tkinter import ttk
-import socket
-import threading
 from ttkthemes import ThemedTk
 import sys
 sys.path.append('..')
