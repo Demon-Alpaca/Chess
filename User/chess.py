@@ -22,6 +22,21 @@ class Chess_Canvas(tkinter.Canvas):
         self.you_points = []
         self.canplay = 1
         self.Record = Record.Record()
+        self.init_chess_board()
+        self.x = ''
+        self.y = ''
+        self.HOST = str(HOST)
+        self.PORT = int(PORT)
+        self.init_client()
+
+    def init_client(self):
+        self.client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.client.connect((self.HOST, self.PORT))
+        print('successed')
+        t1 = threading.Thread(target=self.accept_message, args=(self.client, self))# noqaE501
+        t1.start()
+
+    def init_chess_board(self):
         self.chess_board_points = [[None for i in range(15)] for j in range(15)]# noqaE501
         for i in range(15):
             for j in range(15):
@@ -37,15 +52,6 @@ class Chess_Canvas(tkinter.Canvas):
             for j in range(15):
                 r = 1
                 self.create_oval(self.chess_board_points[i][j].pixel_x-r, self.chess_board_points[i][j].pixel_y-r, self.chess_board_points[i][j].pixel_x+r, self.chess_board_points[i][j].pixel_y+r)# noqaE501
-        self.x = ''
-        self.y = ''
-        self.HOST = str(HOST)
-        self.PORT = int(PORT)
-        self.client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.client.connect((self.HOST, self.PORT))
-        print('successed')
-        t1 = threading.Thread(target=self.accept_message, args=(self.client, self))# noqaE501
-        t1.start()
 
     def accept_message(self, client, theSystem):
         while self.is_running:
